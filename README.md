@@ -325,6 +325,28 @@ ros2 launch ur3_mtc_pick_place ur3_integrated.launch.py \
 | `scripts/run_stack.sh` | 시뮬레이션 전체 스택 기동 (터미널 1) | 매 테스트 |
 | `scripts/run_agent.sh` | LLM Agent 실행 (터미널 2) | 매 테스트 |
 | `scripts/verify.sh` | 노드·토픽·TF·서비스 동작 검증 | 스택 기동 후 확인 |
+| `scripts/debug.sh` | 비전·에이전트 통합 디버그 세션 (tmux 4분할) | 문제 발생 시 |
+| `scripts/debug_vision.py` | 탐지 결과·카메라 Hz 실시간 모니터 (단독 실행 가능) | 비전 디버깅 |
+| `scripts/debug_agent.py` | P1~P4 단계·MoveIt 응답 실시간 모니터 (단독 실행 가능) | 에이전트 디버깅 |
+
+#### 디버그 세션 실행 예시
+
+```bash
+# tmux 4분할 통합 세션 (비전 + 에이전트 + raw echo + 자유 쉘)
+bash scripts/debug.sh
+
+# 로그 파일 저장 + ros2bag 녹화
+bash scripts/debug.sh --save-log --record
+
+# 비전만 단독 모니터
+python3 scripts/debug_vision.py --save-log
+
+# 에이전트만 단독 모니터
+python3 scripts/debug_agent.py --save-log
+```
+
+> 로그 파일은 `Arm_Module_Assembler/logs/` 에 `vision_YYYYMMDD_HHMMSS.log` /
+> `agent_YYYYMMDD_HHMMSS.log` 형식으로 저장됩니다.
 
 ---
 
