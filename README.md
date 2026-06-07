@@ -838,6 +838,8 @@ ros2 topic echo /moveit_status
 | Gripper 제어 불가                   | Controller와 Joint가 연결되지 않음                           | Hardware Interface 등록 및 Controller 생성         |
 | Gazebo에서 Gripper가 흔들리거나 비정상 동작  | Mimic Joint 구조가 물리엔진에서 제대로 처리되지 않음                   | ros2_control 기반 제어 구조 추가 및 Joint 구조 분석        |
 | 손가락이 한쪽만 움직이거나 비정상적으로 움직임       |                               |              |
+| 손가락과 arm 연결 서비스 동작시 제어 불가       |        gripper 85 호환문제                       |         control 구조 변경으로 해결시도     |
+
 
 **pick_place test 주요 트러블슈팅 기록**
 | 문제 | 원인 | 해결 |
