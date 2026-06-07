@@ -1,0 +1,4 @@
+# requirements.txt
+ultralytics>=8.0.0
+opencv-python>=4.5.0
+numpy<2.0.0
