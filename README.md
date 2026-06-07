@@ -827,7 +827,7 @@ ros2 topic echo /moveit_status
 | pick 후 물체 위치 오차 | YOLO가 바닥 좌표 반환, MoveIt은 중심 좌표 필요 | `_build_pick_params()` z 보정 로직 추가 |
 | 서비스 call timeout | spin 스레드에서 call_and_wait 호출 → 데드락 | `ThreadPoolExecutor` 워커 스레드로 이전 |
 
-## UR + GRIPPER 주요 트러블슈팅 기록
+**UR + GRIPPER 주요 트러블슈팅 기록**
 
 
 | 문제                              | 원인                                                   | 해결                                            |
