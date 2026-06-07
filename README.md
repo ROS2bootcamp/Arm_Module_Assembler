@@ -839,6 +839,12 @@ ros2 topic echo /moveit_status
 | Gazebo에서 Gripper가 흔들리거나 비정상 동작  | Mimic Joint 구조가 물리엔진에서 제대로 처리되지 않음                   | ros2_control 기반 제어 구조 추가 및 Joint 구조 분석        |
 | 손가락이 한쪽만 움직이거나 비정상적으로 움직임       |                               |              |
 
+**pick_place test 주요 트러블슈팅 기록**
+| 문제 | 원인 | 해결 |
+|------|------|------|
+| `ur3_mtc_demo.launch.py` 실행 실패 | xacro URDF(XML) 문자열을 `robot_description`에 YAML로 파싱 시도 | `ParameterValue(value_type=str)`로 `robot_description`·`robot_description_semantic` 감쌈 |
+| `ur3_mtc_run.launch.py` 파이썬 plan 실행 실패 | C++ MTC 기준 환경에 `moveit_py` 미설치 → 노드 캐스터 미등록 | `moveit_py` 소스 빌드 추가 (파이썬 유지 결정) |
+
 ### 현재 상태
 
 * ✅ UR3 모델 로드
