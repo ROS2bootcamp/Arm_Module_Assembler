@@ -40,6 +40,25 @@ CLI 자연어 명령 → LLM이 의도 파싱 → YOLO가 선반 위 콜라캔 �
 
 ## 즉시 테스트 가이드
 
+> **셸 스크립트로 한 번에 설정:** 아래 명령 3개로 클론→설치→빌드→실행까지 자동 처리됩니다.
+
+```bash
+# 1. 워크스페이스 생성 후 이 레포 클론
+mkdir -p ~/ros2_ws && cd ~/ros2_ws
+git clone https://github.com/ROS2bootcamp/Arm_Module_Assembler.git
+
+# 2. 전체 환경 설정 (1회 실행 — apt/pip 설치 + 레포 클론 + 빌드 + API 키 설정)
+bash Arm_Module_Assembler/scripts/setup.sh
+
+# 3-A. 시뮬레이션 스택 기동 (터미널 1)
+bash Arm_Module_Assembler/scripts/run_stack.sh
+
+# 3-B. LLM Agent 실행 (터미널 2, 스택 기동 후)
+bash Arm_Module_Assembler/scripts/run_agent.sh
+```
+
+---
+
 ### 1. 사전 요구사항
 
 **OS / ROS 2 스택**
@@ -297,7 +316,19 @@ ros2 launch ur3_mtc_pick_place ur3_integrated.launch.py \
 
 ---
 
-### 9. 트러블슈팅
+### 9. 스크립트 목록
+
+| 스크립트 | 용도 | 실행 횟수 |
+|----------|------|----------|
+| `scripts/setup.sh` | 전체 환경 설정 (apt/pip 설치 + 클론 + 빌드 + `.env` 생성) | 1회 |
+| `scripts/build.sh` | 워크스페이스 재빌드 (`--clean` 옵션으로 전체 재빌드) | 코드 변경 시 |
+| `scripts/run_stack.sh` | 시뮬레이션 전체 스택 기동 (터미널 1) | 매 테스트 |
+| `scripts/run_agent.sh` | LLM Agent 실행 (터미널 2) | 매 테스트 |
+| `scripts/verify.sh` | 노드·토픽·TF·서비스 동작 검증 | 스택 기동 후 확인 |
+
+---
+
+### 10. 트러블슈팅
 
 **Gazebo 모델 로드 실패** (`model://convenience_shelf not found`)
 
