@@ -1,0 +1,101 @@
+<?xml version="1.0" ?>
+<!--
+  UR3 Pick & Place World — Convenience Shelf Scene
+  ==================================================
+  Object layout (shelf surface at world z = 0.34 m):
+
+    shelf:   x=0.55  y=0     z=-0.05 yaw=PI/2 → 1.8 m along world-Y, 0.55 m along world-X
+    coke_can:   x=0.55  y= 0.0  z=0.57  (link_z=0.57 → bottom at z=0.34)
+    ball:       x=0.55  y= 0.35 z=0.40  (center = shelf_z + radius = 0.34 + 0.06)
+    toaster:    x=0.55  y=-0.35 z=0.34  yaw=PI/2 (bottom flush with shelf)
+    camera:     x=1.2   y= 0.0  z=0.5   yaw=PI (faces -X world; TF roll=-PI/2 yaw=+PI/2)
+
+  IGN_GAZEBO_RESOURCE_PATH must include the package's models/ directory so
+  model:// URIs resolve. ur3_mtc_demo.launch.py sets this automatically.
+-->
+<sdf version="1.9">
+  <world name="ur3_pick_place">
+
+    <plugin filename="ignition-gazebo-physics-system"
+            name="ignition::gazebo::systems::Physics"/>
+    <plugin filename="ignition-gazebo-user-commands-system"
+            name="ignition::gazebo::systems::UserCommands"/>
+    <plugin filename="ignition-gazebo-scene-broadcaster-system"
+            name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin filename="ignition-gazebo-sensors-system"
+            name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <gravity>0 0 -9.8</gravity>
+
+    <light name="sun" type="directional">
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>6 6</size></plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>6 6</size></plane>
+          </geometry>
+          <material>
+            <ambient>0.55 0.55 0.55 1</ambient>
+            <diffuse>0.55 0.55 0.55 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Convenience shelf: board surface at world z = 0.34 m -->
+    <include>
+      <uri>model://convenience_shelf</uri>
+      <name>convenience_shelf</name>
+      <pose>0.55 0.0 -0.05 0 0 1.5708</pose>
+    </include>
+
+    <!-- TARGET: Coke can (YOLO class: bottle)
+         link_z=0.57 → can bottom at shelf surface z=0.34 m
+         can center z = 0.34 + 0.077 = 0.417 m -->
+    <include>
+      <uri>model://coke_can</uri>
+      <name>coke_can</name>
+      <pose>0.55 0.0 0.57 0 0 0</pose>
+    </include>
+
+    <!-- DISTRACTOR: Soccer ball (YOLO class: sports ball)
+         radius=0.06 m → spawn center at z = 0.34 + 0.06 = 0.40 m -->
+    <include>
+      <uri>model://robocup_3Dsim_ball</uri>
+      <name>soccer_ball</name>
+      <pose>0.55 0.35 0.40 0 0 0</pose>
+    </include>
+
+    <!-- DISTRACTOR: Toaster (YOLO class: toaster)
+         mesh bottom at z=0 in model frame → spawn at shelf surface z=0.34 m
+         yaw=PI/2: depth axis (0.295 m) aligns with world-X (shelf depth=0.55 m) -->
+    <include>
+      <uri>model://toaster</uri>
+      <name>toaster</name>
+      <pose>0.55 -0.35 0.34 0 0 1.5708</pose>
+    </include>
+
+    <!-- Fixed RGB-D camera: faces -X world (lens at model -X, placed with yaw=PI)
+         At z=0.5 with horizontal FOV 60 deg: covers shelf surface z=0.34 at depth 0.65 m -->
+    <include>
+      <uri>model://fixed_rgbd_camera</uri>
+      <name>fixed_rgbd_camera</name>
+      <pose>1.2 0.0 0.5 0 0 3.14159</pose>
+    </include>
+
+  </world>
+</sdf>

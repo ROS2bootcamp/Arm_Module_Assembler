@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur3_with_robotiq_2f_85">
+
+  <xacro:include filename="$(find ur_moveit_config)/srdf/ur_macro.srdf.xacro"/>
+
+  <xacro:arg name="name"   default="ur"/>
+  <xacro:arg name="prefix" default=""/>
+
+  <!-- UR3 기본 그룹 (ur_manipulator) -->
+  <xacro:ur_srdf name="$(arg name)" prefix="$(arg prefix)"/>
+
+  <!--
+    Robotiq 2F-85 그리퍼 그룹
+    제어 조인트: robotiq_85_left_knuckle_joint (mimic 구조로 나머지 자동 연동)
+    open : 0.0  (완전 열림 — 85mm 개구)
+    close: 0.8  (완전 닫힘 — 0mm 개구, rad 단위)
+  -->
+  <group name="gripper">
+    <joint name="$(arg prefix)robotiq_85_left_knuckle_joint"/>
+  </group>
+
+  <group_state name="open" group="gripper">
+    <joint name="$(arg prefix)robotiq_85_left_knuckle_joint" value="0.0"/>
+  </group_state>
+
+  <group_state name="close" group="gripper">
+    <joint name="$(arg prefix)robotiq_85_left_knuckle_joint" value="0.8"/>
+  </group_state>
+
+  <!-- 엔드 이펙터: ur_manipulator에 gripper 부착 -->
+  <end_effector
+    name="$(arg prefix)robotiq_2f_85"
+    parent_link="$(arg prefix)tool0"
+    group="gripper"/>
+
+  <!-- 그리퍼 내부 충돌 비활성화 -->
+  <disable_collisions link1="$(arg prefix)robotiq_85_base_link"
+                      link2="$(arg prefix)robotiq_85_left_knuckle_link"   reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)robotiq_85_base_link"
+                      link2="$(arg prefix)robotiq_85_right_knuckle_link"  reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)robotiq_85_base_link"
+                      link2="$(arg prefix)robotiq_85_left_inner_knuckle_link"  reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)robotiq_85_base_link"
+                      link2="$(arg prefix)robotiq_85_right_inner_knuckle_link" reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)robotiq_85_left_knuckle_link"
+                      link2="$(arg prefix)robotiq_85_left_finger_link"    reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)robotiq_85_right_knuckle_link"
+                      link2="$(arg prefix)robotiq_85_right_finger_link"   reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)robotiq_85_left_finger_link"
+                      link2="$(arg prefix)robotiq_85_left_finger_tip_link" reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)robotiq_85_right_finger_link"
+                      link2="$(arg prefix)robotiq_85_right_finger_tip_link" reason="Adjacent"/>
+  <!-- tool0 ↔ 그리퍼 베이스 -->
+  <disable_collisions link1="$(arg prefix)tool0"
+                      link2="$(arg prefix)robotiq_85_base_link"           reason="Adjacent"/>
+  <disable_collisions link1="$(arg prefix)wrist_3_link"
+                      link2="$(arg prefix)robotiq_85_base_link"           reason="Adjacent"/>
+
+</robot>

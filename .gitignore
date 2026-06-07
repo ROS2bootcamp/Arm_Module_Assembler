@@ -1,7 +1,18 @@
-# build artifacts
+# ROS 2 colcon build artifacts
 build/
 install/
 log/
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Environment / secrets
 .env
+
+# Debug logs
+logs/*.log
+
+# Editor
+.vscode/
+*.swp

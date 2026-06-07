@@ -21,7 +21,7 @@ check_warn() { echo -e "${YELLOW}  ⚠${NC} $*"; }
 log_section() { echo -e "\n${BLUE}${BOLD}── $* ──${NC}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WS_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+WS_DIR="$(dirname "$SCRIPT_DIR")"
 
 source /opt/ros/humble/setup.bash
 source "$WS_DIR/install/setup.bash" 2>/dev/null || {

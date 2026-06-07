@@ -18,7 +18,7 @@ log_step()  { echo -e "\n${BLUE}${BOLD}═══ $* ═══${NC}"; }
 log_ok()    { echo -e "${GREEN}${BOLD}  ✔ $*${NC}"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WS_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+WS_DIR="$(dirname "$SCRIPT_DIR")"
 
 PACKAGES=(
     llm_agent_msgs

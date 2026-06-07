@@ -207,7 +207,7 @@ def main():
     log_fp = None
     if args.save_log:
         log_dir = args.log_dir or os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
         os.makedirs(log_dir, exist_ok=True)
         fname = os.path.join(log_dir, f"vision_{datetime.now():%Y%m%d_%H%M%S}.log")
         log_fp = open(fname, 'a', buffering=1)

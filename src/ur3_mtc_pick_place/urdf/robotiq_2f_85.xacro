@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!--
+    Robotiq 2F-85 그리퍼 URDF 매크로 (시뮬레이션용 간략화 버전)
+    - 실제 그리퍼: 2개 핑거, 각 3개 링크
+    - 시뮬레이션: 기능적으로 동일한 단순화 모델 사용
+    - TCP(Tool Center Point): robotiq_2f_85_tcp 프레임
+  -->
+  <xacro:macro name="robotiq_2f_85" params="prefix parent *origin">
+
+    <!-- 그리퍼 베이스 링크 -->
+    <link name="${prefix}robotiq_2f_85_base_link">
+      <visual>
+        <geometry>
+          <box size="0.06 0.06 0.04"/>
+        </geometry>
+        <material name="gray">
+          <color rgba="0.4 0.4 0.4 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.06 0.06 0.04"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="0.636"/>
+        <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+      </inertial>
+    </link>
+
+    <!-- 툴 플랜지 → 그리퍼 베이스 고정 조인트 -->
+    <joint name="${prefix}tool0_to_gripper_base" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${prefix}robotiq_2f_85_base_link"/>
+      <xacro:insert_block name="origin"/>
+    </joint>
+
+    <!-- 왼쪽 핑거 링크 -->
+    <link name="${prefix}left_inner_finger">
+      <visual>
+        <geometry>
+          <box size="0.012 0.02 0.06"/>
+        </geometry>
+        <origin xyz="0 0 0.03"/>
+        <material name="dark_gray">
+          <color rgba="0.2 0.2 0.2 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.012 0.02 0.06"/>
+        </geometry>
+        <origin xyz="0 0 0.03"/>
+      </collision>
+      <inertial>
+        <mass value="0.05"/>
+        <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+      </inertial>
+    </link>
+
+    <!-- 오른쪽 핑거 링크 -->
+    <link name="${prefix}right_inner_finger">
+      <visual>
+        <geometry>
+          <box size="0.012 0.02 0.06"/>
+        </geometry>
+        <origin xyz="0 0 0.03"/>
+        <material name="dark_gray">
+          <color rgba="0.2 0.2 0.2 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <geometry>
+          <box size="0.012 0.02 0.06"/>
+        </geometry>
+        <origin xyz="0 0 0.03"/>
+      </collision>
+      <inertial>
+        <mass value="0.05"/>
+        <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+      </inertial>
+    </link>
+
+    <!-- 왼쪽 핑거 조인트 (mimic 구조: 하나 제어 → 양쪽 동시 동작) -->
+    <joint name="${prefix}finger_joint" type="revolute">
+      <parent link="${prefix}robotiq_2f_85_base_link"/>
+      <child link="${prefix}left_inner_finger"/>
+      <origin xyz="0 0.031 0.028" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="-0.8" upper="0.0" effort="235" velocity="2.0"/>
+    </joint>
+
+    <!-- 오른쪽 핑거 조인트 (mimic) -->
+    <joint name="${prefix}right_finger_joint" type="revolute">
+      <parent link="${prefix}robotiq_2f_85_base_link"/>
+      <child link="${prefix}right_inner_finger"/>
+      <origin xyz="0 -0.031 0.028" rpy="0 0 0"/>
+      <axis xyz="-1 0 0"/>
+      <limit lower="-0.8" upper="0.0" effort="235" velocity="2.0"/>
+      <mimic joint="${prefix}finger_joint" multiplier="1" offset="0"/>
+    </joint>
+
+    <!-- TCP 프레임 (두 핑거 사이 중점, 파지 기준점) -->
+    <link name="${prefix}robotiq_2f_85_tcp"/>
+    <joint name="${prefix}gripper_tcp_joint" type="fixed">
+      <parent link="${prefix}robotiq_2f_85_base_link"/>
+      <child link="${prefix}robotiq_2f_85_tcp"/>
+      <origin xyz="0 0 0.13" rpy="0 0 0"/>
+    </joint>
+
+  </xacro:macro>
+</robot>

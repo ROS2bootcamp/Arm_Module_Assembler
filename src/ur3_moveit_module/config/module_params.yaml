@@ -1,0 +1,57 @@
+/**:
+  ros__parameters:
+    # ───────────────────────────────────────────────
+    # 인터페이스 (LLM_Agent 계약) — 전송=서비스 (DECISIONS D15)
+    #   /moveit/execute (llm_agent_msgs/srv/MoveItExecute), 이 모듈이 서버
+    #   status_topic 은 모니터링용 보조 발행(필수 아님)
+    # ───────────────────────────────────────────────
+    service_name:  "/moveit/execute"
+    status_topic:  "/moveit_status"
+    log_topic:     "/moveit_module/log"
+
+    # ───────────────────────────────────────────────
+    # 동작 모드
+    #   mock: true  → MoveIt 모션 없이 status 만 반환 (서비스 핸드셰이크 검증용)
+    #   mock: false → 실제 MoveItPy 모션 실행
+    # ───────────────────────────────────────────────
+    mock: false
+
+    # ───────────────────────────────────────────────
+    # UR3 + Robotiq 2F-85 그룹/프레임 (PANDA_ENV ur3_with_gripper URDF/SRDF 검증값)
+    # 로봇 고정값 → 서버 권위(D16): 명령에 실려와도 무시하고 이 값 사용
+    # ───────────────────────────────────────────────
+    arm_group_name:  "ur_manipulator"
+    hand_group_name: "gripper"
+    eef_name:        "robotiq_2f_85"
+    hand_frame:      "robotiq_85_tcp"   # ur3_with_gripper.urdf.xacro 의 실제 TCP 링크
+
+    hand_open_pose:  "open"     # SRDF group_state: robotiq_85_left_knuckle_joint = 0.0
+    hand_close_pose: "close"    # SRDF group_state: robotiq_85_left_knuckle_joint = 0.8
+    arm_home_pose:   "home"
+
+    world_frame:   "world"
+    surface_link:  "table_surface"
+
+    # ───────────────────────────────────────────────
+    # 파지 기하 (D16): hand_frame=robotiq_85_tcp 가 이미 핑거팁(base+0.13m)이므로
+    # TCP 기준 추가 오프셋은 z=0.0, roll=π(그리퍼가 물체를 향해 하강)
+    # ───────────────────────────────────────────────
+    grasp_frame_transform: [0.0, 0.0, 0.0, 3.1416, 0.0, 0.0]
+
+    # ───────────────────────────────────────────────
+    # 접근 / 들기 거리 기본값 (m)
+    # ───────────────────────────────────────────────
+    approach_min_dist: 0.08
+    approach_max_dist: 0.15
+    lift_min_dist:     0.05
+    lift_max_dist:     0.15
+
+    # ───────────────────────────────────────────────
+    # 계획 옵션
+    # ───────────────────────────────────────────────
+    max_solutions:           8
+    planning_time_sec:       5.0
+    cartesian_step_size:     0.01
+    cartesian_jump_thresh:   0.0
+    velocity_scaling:        0.3
+    acceleration_scaling:    0.3

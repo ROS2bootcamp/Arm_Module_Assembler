@@ -1,0 +1,69 @@
+/**:
+  ros__parameters:
+    # ──────────────────────────────────────────
+    # 계획 옵션
+    # ──────────────────────────────────────────
+    max_solutions: 10
+    execute: true                 # true: 계획 후 자동 실행
+
+    # ──────────────────────────────────────────
+    # UR3 + Robotiq 2F-85 그룹/프레임 설정
+    # ──────────────────────────────────────────
+    arm_group_name:  "ur_manipulator"
+    eef_name:        "robotiq_2f_85"         # SRDF end_effector name
+    hand_group_name: "gripper"
+    hand_frame:      "robotiq_85_tcp"        # TCP 프레임 (ur3_with_gripper.urdf.xacro 정의)
+
+    hand_open_pose:  "open"               # SRDF group_state
+    hand_close_pose: "close"
+    arm_home_pose:   "home"               # UR3 SRDF home 상태
+
+    # ──────────────────────────────────────────
+    # 씬 프레임
+    # ──────────────────────────────────────────
+    world_frame:           "world"
+    table_reference_frame: "world"
+    object_reference_frame: "world"
+    surface_link:          "table_surface"
+
+    # ──────────────────────────────────────────
+    # 서포트 서피스 (MTC 충돌 물체 — convenience shelf board)
+    # ──────────────────────────────────────────
+    # shelf board: 1.80×0.55×0.06 m, world z center = -0.05+0.36 = 0.31 m
+    # After yaw=PI/2: depth 0.55 m along world X, width 1.80 m along world Y
+    spawn_table: true
+    table_name: "table"
+    table_dimensions: [0.55, 1.80, 0.06]           # [x, y, z] 크기 (m)
+    table_pose:       [0.55, 0.0, 0.31, 0.0, 0.0, 0.0]  # [x,y,z,r,p,y] shelf board center
+
+    # ──────────────────────────────────────────
+    # 파지 대상 물체 (원통형 — coke can)
+    # ──────────────────────────────────────────
+    # UR3_CONVENIENCE_ENV model.sdf scale=0.5: height≈0.15 m, radius≈0.033 m
+    # can center world z = shelf_surface(0.34) + half_height(0.075) = 0.415 m
+    # LLM_Agent overrides object_pose from YOLO detection; this is the fallback.
+    object_name: "cylinder"
+    object_dimensions: [0.15, 0.033]  # [높이, 반지름]
+    object_pose: [0.55, 0.0, 0.415, 0.0, 0.0, 0.0]
+
+    # ──────────────────────────────────────────
+    # 파지 자세 생성 파라미터
+    # ──────────────────────────────────────────
+    # 그리퍼 TCP → hand_frame 변환 [x,y,z,roll,pitch,yaw]
+    # robotiq_85_base_link → TCP: z=0.13m (robotiq_2f_85_macro 기준)
+    grasp_frame_transform: [0.0, 0.0, 0.0, 3.1416, 0.0, 0.0]
+
+    # ──────────────────────────────────────────
+    # 배치 위치
+    # ──────────────────────────────────────────
+    # Place target: floor-level drop zone (can center z = half_height = 0.075 m)
+    place_pose:           [0.4, -0.2, 0.075, 0.0, 0.0, 0.0]
+    place_surface_offset: 0.001
+
+    # ──────────────────────────────────────────
+    # 접근/후퇴 거리
+    # ──────────────────────────────────────────
+    approach_object_min_dist: 0.08
+    approach_object_max_dist: 0.15
+    lift_object_min_dist:     0.05
+    lift_object_max_dist:     0.15

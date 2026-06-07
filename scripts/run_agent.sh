@@ -18,7 +18,7 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WS_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+WS_DIR="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="$WS_DIR/.env"
 
 echo -e "\n${BLUE}${BOLD}UR3 Pick & Place — LLM Agent 실행${NC}\n"

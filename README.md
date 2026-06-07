@@ -40,21 +40,21 @@ CLI 자연어 명령 → LLM이 의도 파싱 → YOLO가 선반 위 콜라캔 �
 
 ## 즉시 테스트 가이드
 
-> **셸 스크립트로 한 번에 설정:** 아래 명령 3개로 클론→설치→빌드→실행까지 자동 처리됩니다.
+> **이 레포 하나로 모든 것이 포함됩니다.** `src/` 에 전체 ROS 2 패키지, `src/ur3_mtc_pick_place/models/` 에 Gazebo 모델이 내장되어 있습니다. 별도 레포 클론 불필요.
 
 ```bash
-# 1. 워크스페이스 생성 후 이 레포 클론
-mkdir -p ~/ros2_ws && cd ~/ros2_ws
+# 1. 클론
 git clone https://github.com/ROS2bootcamp/Arm_Module_Assembler.git
+cd Arm_Module_Assembler
 
-# 2. 전체 환경 설정 (1회 실행 — apt/pip 설치 + 레포 클론 + 빌드 + API 키 설정)
-bash Arm_Module_Assembler/scripts/setup.sh
+# 2. 전체 환경 설정 (1회 — apt/pip 설치 + 빌드 + API 키)
+bash scripts/setup.sh
 
 # 3-A. 시뮬레이션 스택 기동 (터미널 1)
-bash Arm_Module_Assembler/scripts/run_stack.sh
+bash scripts/run_stack.sh
 
 # 3-B. LLM Agent 실행 (터미널 2, 스택 기동 후)
-bash Arm_Module_Assembler/scripts/run_agent.sh
+bash scripts/run_agent.sh
 ```
 
 ---
@@ -91,31 +91,32 @@ pip3 install google-genai python-dotenv ultralytics
 
 ---
 
-### 2. 워크스페이스 구성
+### 2. 레포 구조
 
-> 모든 레포는 **같은 디렉터리** 아래에 클론합니다.  
-> `colcon build`는 재귀적으로 패키지를 탐색하므로 `src/` 폴더 없이도 동작합니다.
+이 레포는 **모노레포 ROS 2 워크스페이스**입니다. 별도 레포 클론 없이 이 레포 하나로 완전한 시스템을 구성합니다.
 
-```bash
-export WS=~/ros2_ws          # 원하는 경로로 변경 가능
-mkdir -p $WS && cd $WS
-
-# ── 통합 레포 클론 (각 통합 브랜치 지정) ──────────────────────
-git clone -b fix/srdf-group-name \
-  https://github.com/ROS2bootcamp/PANDA_ENV.git
-
-git clone -b feat/service-interface \
-  https://github.com/ROS2bootcamp/Moveit_module.git
-
-git clone -b fix/agent-frame-params \
-  https://github.com/ROS2bootcamp/LLM_Agent.git
-
-git clone -b feat/integration \
-  https://github.com/ROS2bootcamp/ROBOT_VISION.git
-
-git clone -b feat/model-dirs-and-integrated-world \
-  https://github.com/ROS2bootcamp/UR3_CONVENIENCE_ENV.git
 ```
+Arm_Module_Assembler/         ← colcon 워크스페이스 루트
+├── src/
+│   ├── llm_agent_msgs/       LLM ↔ MoveIt 서비스 인터페이스
+│   ├── llm_agent/            LLM 에이전트 (Gemini + P1~P4 Pick & Place)
+│   ├── ur3_mtc_pick_place/   UR3 환경 패키지
+│   │   ├── models/           Gazebo 모델 (선반·콜라캔·디스트랙터·카메라)
+│   │   └── worlds/           통합 씬 SDF (ur3_pick_place.sdf)
+│   ├── ur3_moveit_module/    MoveIt2 + MTC 실행 서비스
+│   └── robot_vision/         YOLO v8 탐지 노드
+├── scripts/                  자동화 스크립트
+├── docs/                     설계 결정 문서
+└── .env                      API 키 (gitignore, setup.sh 가 생성)
+```
+
+**Gazebo 씬 구성:**
+
+| 오브젝트 | YOLO 클래스 | 역할 |
+|---------|------------|------|
+| Coke Can | `bottle` | **타겟** — 에이전트가 집는 대상 |
+| Soccer Ball | `sports ball` | 디스트랙터 |
+| Toaster | `toaster` | 디스트랙터 |
 
 최종 디렉터리 구조:
 

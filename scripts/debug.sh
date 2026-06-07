@@ -30,8 +30,8 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WS_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
-LOG_DIR="$WS_DIR/Arm_Module_Assembler/logs"
+WS_DIR="$(dirname "$SCRIPT_DIR")"
+LOG_DIR="$WS_DIR/logs"
 
 # ── 인수 파싱 ─────────────────────────────────────────────────
 MODE="all"

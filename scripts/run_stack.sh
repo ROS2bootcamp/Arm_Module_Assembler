@@ -23,7 +23,7 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WS_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+WS_DIR="$(dirname "$SCRIPT_DIR")"
 
 # ── 인수 파싱 ─────────────────────────────────────────────────
 NO_RVIZ=false
@@ -57,15 +57,8 @@ fi
 source /opt/ros/humble/setup.bash
 source "$INSTALL_SETUP"
 
-# ── IGN_GAZEBO_RESOURCE_PATH 설정 ─────────────────────────────
-UR3_ENV="${UR3_CONVENIENCE_ENV_PATH:-$WS_DIR/UR3_CONVENIENCE_ENV}"
-if [ ! -d "$UR3_ENV/models" ]; then
-    log_error "UR3_CONVENIENCE_ENV 없음: $UR3_ENV"
-    echo "  UR3_CONVENIENCE_ENV_PATH를 확인하거나 setup.sh를 다시 실행하세요."
-    exit 1
-fi
-export UR3_CONVENIENCE_ENV_PATH="$UR3_ENV"
-log_info "IGN_GAZEBO_RESOURCE_PATH: $UR3_ENV/models"
+# IGN_GAZEBO_RESOURCE_PATH는 ur3_mtc_demo.launch.py 가 자동으로 설정함
+# (패키지 share/models/ 경로 — 외부 환경 변수 불필요)
 
 # ── launch 인수 구성 ───────────────────────────────────────────
 LAUNCH_ARGS=()

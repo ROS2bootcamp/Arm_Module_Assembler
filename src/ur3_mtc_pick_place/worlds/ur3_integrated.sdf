@@ -1,0 +1,76 @@
+<?xml version="1.0" ?>
+<!--
+  UR3 Integrated World (PANDA_ENV copy — mirrors UR3_CONVENIENCE_ENV/worlds/ur3_pick_place.sdf)
+  ==============================================================================================
+  Uses local models via model:// URI.
+  IGN_GAZEBO_RESOURCE_PATH must include UR3_CONVENIENCE_ENV/models.
+  ur3_mtc_demo.launch.py sets this automatically via the UR3_CONVENIENCE_ENV_PATH env var.
+
+  Camera TF (ur3_mtc_demo.launch.py): camera_x=1.2 camera_z=0.5 roll=-PI/2 yaw=+PI/2
+-->
+<sdf version="1.9">
+  <world name="ur3_integrated">
+
+    <plugin filename="ignition-gazebo-physics-system"
+            name="ignition::gazebo::systems::Physics"/>
+    <plugin filename="ignition-gazebo-user-commands-system"
+            name="ignition::gazebo::systems::UserCommands"/>
+    <plugin filename="ignition-gazebo-scene-broadcaster-system"
+            name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin filename="ignition-gazebo-sensors-system"
+            name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <gravity>0 0 -9.8</gravity>
+
+    <light name="sun" type="directional">
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>6 6</size></plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane><normal>0 0 1</normal><size>6 6</size></plane>
+          </geometry>
+          <material>
+            <ambient>0.55 0.55 0.55 1</ambient>
+            <diffuse>0.55 0.55 0.55 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Shelf surface at world z = 0.34 m; spawn from README -->
+    <include>
+      <uri>model://convenience_shelf</uri>
+      <name>convenience_shelf</name>
+      <pose>0.55 0.0 -0.05 0 0 1.5708</pose>
+    </include>
+
+    <!-- Coke can: link_z=0.57 puts can bottom on shelf surface at z=0.34 m -->
+    <include>
+      <uri>model://coke_can</uri>
+      <name>coke_can</name>
+      <pose>0.55 0.0 0.57 0 0 0</pose>
+    </include>
+
+    <!-- Camera at z=0.5, yaw=PI (facing -X); shelf and can both within FOV -->
+    <include>
+      <uri>model://fixed_rgbd_camera</uri>
+      <name>fixed_rgbd_camera</name>
+      <pose>1.2 0.0 0.5 0 0 3.14159</pose>
+    </include>
+
+  </world>
+</sdf>
