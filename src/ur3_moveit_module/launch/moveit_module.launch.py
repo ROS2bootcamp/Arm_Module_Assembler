@@ -20,6 +20,7 @@ from launch.substitutions import (
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def launch_setup(context, *args, **kwargs):
@@ -58,8 +59,8 @@ def launch_setup(context, *args, **kwargs):
             FindPackageShare("ur_moveit_config"), "config", "ompl_planning.yaml"
         ])
         params = [
-            {"robot_description": robot_description_content},
-            {"robot_description_semantic": robot_description_semantic_content},
+            {"robot_description": ParameterValue(robot_description_content, value_type=str)},
+            {"robot_description_semantic": ParameterValue(robot_description_semantic_content, value_type=str)},
             {"robot_description_kinematics": kinematics_yaml},
             {"robot_description_planning": ompl_planning_yaml},
         ] + params
