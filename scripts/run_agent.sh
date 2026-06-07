@@ -35,8 +35,10 @@ if [ ! -f "$INSTALL_SETUP" ]; then
     exit 1
 fi
 
+set +u
 source /opt/ros/humble/setup.bash
 source "$INSTALL_SETUP"
+set -u
 
 # ── API 키 확인 ────────────────────────────────────────────────
 if [ -f "$ENV_FILE" ]; then

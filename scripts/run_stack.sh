@@ -54,8 +54,10 @@ if [ ! -f "$INSTALL_SETUP" ]; then
     exit 1
 fi
 
+set +u
 source /opt/ros/humble/setup.bash
 source "$INSTALL_SETUP"
+set -u
 
 # IGN_GAZEBO_RESOURCE_PATH는 ur3_mtc_demo.launch.py 가 자동으로 설정함
 # (패키지 share/models/ 경로 — 외부 환경 변수 불필요)

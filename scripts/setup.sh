@@ -44,7 +44,10 @@ if [ ! -f /opt/ros/humble/setup.bash ]; then
     exit 1
 fi
 log_ok "ROS 2 Humble 확인됨"
+
+set +u
 source /opt/ros/humble/setup.bash
+set -u
 
 # ── Step 2: apt 패키지 설치 ────────────────────────────────────
 log_step "Step 2: 시스템 패키지 설치 (apt)"
@@ -130,7 +133,10 @@ if [ ! -f "$WS_DIR/install/setup.bash" ]; then
     exit 1
 fi
 
+set +u
 source "$WS_DIR/install/setup.bash"
+set -u
+
 log_ok "빌드 완료"
 
 # ── Step 5: .env (API 키) 설정 ────────────────────────────────
@@ -171,8 +177,12 @@ else
     cat >> "$BASHRC" << EOF
 
 $MARKER
+
+set +u
 source /opt/ros/humble/setup.bash
 source $WS_DIR/install/setup.bash 2>/dev/null || true
+set -u
+
 EOF
     log_ok "~/.bashrc 업데이트됨"
 fi
