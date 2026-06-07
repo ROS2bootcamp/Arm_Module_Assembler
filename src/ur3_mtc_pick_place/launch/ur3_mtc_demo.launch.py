@@ -78,10 +78,12 @@ def launch_setup(context, *args, **kwargs):
     ])
 
     # ── Gazebo 시뮬레이션 + ros2_control ──────────────────
+    # 시스템 ur_sim_control.launch.py 에 robot_description ParameterValue 버그가 있어
+    # 패키지 내 수정 버전(ur_sim_control_fixed.launch.py)을 사용한다.
     gz_sim_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            FindPackageShare('ur_simulation_gz'),
-            '/launch/ur_sim_control.launch.py',
+            FindPackageShare('ur3_mtc_pick_place'),
+            '/launch/ur_sim_control_fixed.launch.py',
         ]),
         launch_arguments={
             'ur_type': ur_type,
