@@ -10,6 +10,10 @@
 > MoveIt 서버는 더 이상 "PANDA 스크립트 개조"가 아니라 **Moveit_module 적응**으로 확정.
 > 신규 D15(전송=서비스)·D16(모듈 파라미터) 추가, D3·D4·D7·D8은 Moveit_module이 이미 상당부분 충족.
 > 상세 구조: [MOVEIT_MODULE_INTEGRATION.md](MOVEIT_MODULE_INTEGRATION.md).
+>
+> **2026-06-07 모델·프레임 단일화**: D15·D16 구현 완료(Moveit_module PR#1 `feat/service-interface`).
+> LLM_Agent `agent.yaml` 프레임 정정 완료(PR `fix/agent-frame-params`). 신규 D17(SRDF name 인수 버그) 추가.
+> PANDA_ENV·Moveit_module launch의 SRDF `name:=ur3` → `name:=ur` 정정 완료(각 PR).
 
 ---
 
@@ -104,7 +108,7 @@
 - **이슈**: ur3-glapper CMakeLists가 미존재 `launch/config/worlds` install → 빌드 실패 소지.
 - **결정**: D5로 ur3-glapper를 독립 빌드대상에서 제외하므로 영향 소거. (잔존 사용 시 install 라인 수정)
 
-## D15 — Agent↔MoveIt 전송 = 서비스로 통일 🔧📌 (2026-06-07 확정)
+## D15 — Agent↔MoveIt 전송 = 서비스로 통일 ✅📌 (2026-06-07 확정·구현 완료)
 - **불일치**: 신규 Moveit_module은 **토픽**(`/moveit_command`·`/moveit_status`, 평면 JSON),
   LLM_Agent 양 브랜치는 **서비스**(`/moveit/execute`, `MoveItExecute.srv`, `{cmd, params_json}`).
   모듈 설계서 §1.1의 "Agent=토픽/`send_and_wait`" 분석은 사실과 다름(LLM_Agent에 그 코드 없음).
@@ -115,8 +119,10 @@
 - **액션**: `moveit_module_node.py` 서비스 서버화 + `llm_agent_msgs` 의존 추가. 페이로드 병합
   `{"cmd":req.cmd, **json.loads(req.params_json)}` → router. 토픽 모드는 단독 디버그용 선택 유지.
   상세 [MOVEIT_MODULE_INTEGRATION.md §3.1](MOVEIT_MODULE_INTEGRATION.md).
+- **구현**: Moveit_module 브랜치 `feat/service-interface` PR#1. `CommandRouter.handle_request()` 추가.
+  단위테스트 34개 통과, flake8 clean.
 
-## D16 — Moveit_module 파라미터 정정 & 고정값 서버권위 🔧✅
+## D16 — Moveit_module 파라미터 정정 & 고정값 서버권위 ✅ (구현 완료)
 - **이슈**: ① 모듈 기본 `hand_frame=robotiq_2f_85_tcp`인데 bringup URDF의 실제 TCP는 `robotiq_85_tcp`
   (없는 프레임 → IK 실패). ② `grasp_frame_transform` z=0.13인데 그 TCP는 이미 base+0.13m → 0.0이어야 함.
   ③ `handlers._get`이 **명령값을 config보다 우선** → 에이전트가 보내는 (현재 틀린) 고정값이 올바른 기본값을 덮어씀.
@@ -125,16 +131,32 @@
   group/eef명)은 서버 config를 권위로** 사용(명령 override 무시), 동적값만 명령에서 취함.
   추가로 LLM_Agent `agent.yaml`도 정정(D1·D2)하여 이중 안전.
 - **액션**: 모듈 config·`handlers._get` 고정값 분기 + LLM_Agent agent.yaml 수정.
+- **구현**: Moveit_module `feat/service-interface` 포함. LLM_Agent `fix/agent-frame-params` PR.
+
+---
+
+## D17 — SRDF `name` 인수 버그: `ur3_manipulator` → `ur_manipulator` ✅ (구현 완료)
+- **불일치**: PANDA_ENV `ur3_mtc_demo.launch.py`·Moveit_module `moveit_module.launch.py`가
+  SRDF xacro에 `name:=$(ur_type)` (`ur3`)을 전달 → 생성 그룹명 `ur3_manipulator`.
+  그런데 `ur_moveit_config/kinematics.yaml` `ompl_planning.yaml`은 `ur_manipulator` 하드코딩.
+  → **IK·플래닝 파이프라인이 그룹명 불일치로 완전히 동작 불가**.
+- **근거**: `ur_moveit_config/srdf/ur_macro.srdf.xacro`의 컨벤션은 `name="ur"` (로봇 타입 무관 고정).
+  `ur_simulation_gz/launch/ur_sim_moveit.launch.py`도 동일 컨벤션 사용.
+  xacro 확장 검증: `name:=ur` → `<group name="ur_manipulator">`, `name:=ur3` → `<group name="ur3_manipulator">`.
+- **결정**: SRDF xacro 호출 시 **`name:=ur` 하드코딩** (ur_type과 무관하게 고정).
+- **액션**: PANDA_ENV `ur3_mtc_demo.launch.py` `" name:=", ur_type` → `" name:=ur "`.
+  Moveit_module `moveit_module.launch.py` 동일 수정.
+- **구현**: PANDA_ENV 브랜치 `fix/srdf-group-name`, Moveit_module `feat/service-interface`에 포함.
 
 ---
 
 ## 부록 A — LLM_Agent 측 수정 요약 (계약 정합)
-| 파일 | 변경 |
-|------|------|
-| `config/agent.yaml` | `hand_frame: robotiq_85_tcp` (D1), `grasp_frame_transform: [...,0.0,...]` z=0.0 (D2) |
-| `agent_node.py` `_run_p4` | place 좌표에 중심 보정 적용 (D8b) |
-| `yolo_subscriber.py` `_match` | 좌표 null 가드 (D9) |
-| `MOVEIT_INTERFACE.md`/`ARCHITECTURE.md`/`CONTEXT.md` | TCP명·grasp z 표기 갱신 |
+| 파일 | 변경 | 상태 |
+|------|------|------|
+| `config/agent.yaml` | `hand_frame: robotiq_85_tcp` (D1), `grasp_frame_transform: [...,0.0,...]` z=0.0 (D2) | ✅ 완료 (PR `fix/agent-frame-params`) |
+| `agent_node.py` `_run_p4` | place 좌표에 중심 보정 적용 (D8b) | 🔧 미완 |
+| `yolo_subscriber.py` `_match` | 좌표 null 가드 (D9) | 🔧 미완 |
+| `MOVEIT_INTERFACE.md`/`ARCHITECTURE.md`/`CONTEXT.md` | TCP명·grasp z 표기 갱신 | 🔧 미완 |
 
 ## 부록 B — MoveIt 서버 측 요구사항 요약 (산출물 = `Moveit_module/ur3_moveit_module`)
 > 대부분 Moveit_module이 **이미 충족**. 남은 변경은 전송 서비스화(D15)·파라미터(D16)뿐.
@@ -146,8 +168,9 @@
 | 좌표 중심 사용, +h/2 비중복 (D8/D8b) | grasp_planner가 중심보정 1회 | ✅ 충족(에이전트와 중복 안 되게 D8 규약 준수 확인) |
 | error_code 0=SUCCESS 정규화 (D7) | command_router `ERR_OK=0` | ✅ 충족 |
 | scan 다중 waypoint, blocking (D10) | handlers.scan | ✅ 충족 |
-| **전송 = /moveit/execute 서비스 (D15)** | 현재 토픽 | 🔧 **변경 필요** |
-| **파라미터 정정 hand_frame/grasp z (D16)** | 현재 틀림 | 🔧 **변경 필요** |
+| **전송 = /moveit/execute 서비스 (D15)** | 서비스 서버 구현 완료 | ✅ 완료 (PR#1) |
+| **파라미터 정정 hand_frame/grasp z (D16)** | 파라미터 정정·ROBOT_FIXED_KEYS 추가 | ✅ 완료 (PR#1) |
+| **SRDF name:=ur 고정 (D17)** | `moveit_module.launch.py` 수정 | ✅ 완료 (PR#1 포함) |
 | 산출 위치 | `Moveit_module` 레포 `ur3_moveit_module` 패키지 | ✅ 확정 |
 
 ## 부록 C — ROBOT_VISION 측 요구사항 요약

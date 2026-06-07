@@ -26,7 +26,7 @@
 | robot base | `base_link` | UR description |
 | **world → base_link** | **identity** (0,0,0,0,0,0) | PANDA URDF `world_joint` + static TF |
 | camera frame | `camera_link` | YOLO TF 소스 프레임 |
-| **arm group** | `ur_manipulator` | `ur_moveit_config` SRDF |
+| **arm group** | `ur_manipulator` | `ur_moveit_config` SRDF (`name:=ur` 고정 필요, [D17]) |
 | **gripper group** | `gripper` | PANDA SRDF |
 | **end-effector** | `robotiq_2f_85` | PANDA SRDF `end_effector` |
 | **hand_frame (TCP)** | **`robotiq_85_tcp`** | PANDA active URDF (base+0.13m) |
@@ -35,7 +35,10 @@
 | 단위 / 회전 | meter / radian, RPY = **extrinsic xyz** | scipy `from_euler("xyz")` |
 | 포즈 표기 | `[x, y, z, roll, pitch, yaw]` | 전 인터페이스 공통 |
 
-> ⚠️ **변경점**: LLM_Agent의 기존 `hand_frame=robotiq_2f_85_tcp`는 **`robotiq_85_tcp`로 수정**한다. [D1]
+> ⚠️ **변경점(D1)**: LLM_Agent의 기존 `hand_frame=robotiq_2f_85_tcp`는 **`robotiq_85_tcp`로 수정**했다(완료).
+>
+> ⚠️ **변경점(D17)**: PANDA_ENV·Moveit_module launch의 SRDF xacro 호출 시 `name:=$(ur_type)`(`ur3`)이
+> `ur3_manipulator`를 생성해 `ur_moveit_config` kinematics/OMPL과 불일치. **`name:=ur` 하드코딩**으로 수정 완료.
 
 ---
 
