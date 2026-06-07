@@ -14,6 +14,10 @@
 > **2026-06-07 모델·프레임 단일화**: D15·D16 구현 완료(Moveit_module PR#1 `feat/service-interface`).
 > LLM_Agent `agent.yaml` 프레임 정정 완료(PR `fix/agent-frame-params`). 신규 D17(SRDF name 인수 버그) 추가.
 > PANDA_ENV·Moveit_module launch의 SRDF `name:=ur3` → `name:=ur` 정정 완료(각 PR).
+>
+> **2026-06-07 UR3_CONVENIENCE_ENV 통합**: UR3_CONVENIENCE_ENV 로컬 모델 기반 통합 완료(D18).
+> Fuel 없이 `model://` URI로 shelf·coke_can·camera 로드. camera_info 토픽 수정(/camera/image/camera_info).
+> 카메라 위치 z=0.5 (FOV 내 shelf surface z=0.34 커버). 물체 치수 갱신(bottle: 0.15m×0.033m).
 
 ---
 
@@ -148,14 +152,34 @@
   Moveit_module `moveit_module.launch.py` 동일 수정.
 - **구현**: PANDA_ENV 브랜치 `fix/srdf-group-name`, Moveit_module `feat/service-interface`에 포함.
 
+## D18 — UR3_CONVENIENCE_ENV 로컬 모델 통합 ✅ (구현 완료)
+- **배경**: UR3_CONVENIENCE_ENV가 테스트용 가상환경 맵으로 업데이트됨. Fuel(인터넷) 의존성 제거 필요.
+- **문제**: `ur3_integrated.sdf`가 Fuel Coke Can + 인라인 RGBD 카메라 사용 → 인터넷 없이 로드 불가.
+  `fixed_rgbd_camera.sdf`(type="camera" 분리형 센서) → camera_info가 `/camera/image/camera_info` 발행.
+  기존 코드는 `/camera/camera_info` 구독 → camera intrinsics 미수신.
+  카메라 z=0.8 수평 시야 시 shelf surface z=0.34가 FOV 하단 외부(z=0.52~1.08 커버) → 물체 불가시.
+- **결정**:
+  1. `UR3_CONVENIENCE_ENV/models/`에 `convenience_shelf/`, `fixed_rgbd_camera/` 모델 디렉토리 생성 → `model://` URI 지원
+  2. `UR3_CONVENIENCE_ENV/worlds/ur3_pick_place.sdf` 생성 (로컬 모델만 사용)
+  3. `ur3_integrated.sdf` 동일 구조로 갱신
+  4. camera_info 토픽: `/camera/camera_info` → `/camera/image/camera_info`
+  5. 카메라 위치: z=0.8→0.5 (수평 시야로 shelf surface z=0.34, can center z=0.42 모두 FOV 내)
+  6. `IGN_GAZEBO_RESOURCE_PATH`: `UR3_CONVENIENCE_ENV_PATH` env var로 launch에서 자동 설정
+  7. 물체 치수: bottle `[0.20, 0.033]` → `[0.15, 0.033]` (mesh Z range 분석: 0~306.4mm → scale=0.5 → ≈0.154m)
+- **Can 배치 계산**: model.sdf pose z=-0.23 → bottom at link_z−0.23; bottom on shelf(z=0.34): link_z=0.57
+- **구현**: PANDA_ENV `fix/srdf-group-name`, ROBOT_VISION `feat/integration`, LLM_Agent `fix/agent-frame-params`, UR3_CONVENIENCE_ENV `feat/model-dirs-and-integrated-world`
+
 ---
 
 ## 부록 A — LLM_Agent 측 수정 요약 (계약 정합)
 | 파일 | 변경 | 상태 |
 |------|------|------|
 | `config/agent.yaml` | `hand_frame: robotiq_85_tcp` (D1), `grasp_frame_transform: [...,0.0,...]` z=0.0 (D2) | ✅ 완료 (PR `fix/agent-frame-params`) |
+| `config/objects.yaml` | bottle dimensions `[0.15, 0.033]` (D18) | ✅ 완료 (PR `fix/agent-frame-params`) |
+| `config/targets.yaml` | place_target z=0.08 (can half-height above floor) (D18) | ✅ 완료 (PR `fix/agent-frame-params`) |
+| `config/scan_waypoints.yaml` | shelf 시나리오용 arm waypoint 갱신 (D18) | ✅ 완료 (PR `fix/agent-frame-params`) |
 | `agent_node.py` `_run_p4` | place 좌표에 중심 보정 적용 (D8b) | 🔧 미완 |
-| `yolo_subscriber.py` `_match` | 좌표 null 가드 (D9) | 🔧 미완 |
+| `yolo_subscriber.py` `_match` | 좌표 null 가드 (D9) | ✅ 완료 (PR `fix/agent-frame-params`) |
 | `MOVEIT_INTERFACE.md`/`ARCHITECTURE.md`/`CONTEXT.md` | TCP명·grasp z 표기 갱신 | 🔧 미완 |
 
 ## 부록 B — MoveIt 서버 측 요구사항 요약 (산출물 = `Moveit_module/ur3_moveit_module`)
@@ -174,7 +198,20 @@
 | 산출 위치 | `Moveit_module` 레포 `ur3_moveit_module` 패키지 | ✅ 확정 |
 
 ## 부록 C — ROBOT_VISION 측 요구사항 요약
-| 항목 | 요구 |
-|------|------|
-| TF 실패 객체 제외 발행 (D9) | `position_3d_base_frame` null이면 objects[]에서 제외 |
-| 통합 월드 연동 (D13) | 카메라 TF 연결, camera_info 사용 |
+| 항목 | 요구 | 상태 |
+|------|------|------|
+| TF 실패 객체 제외 발행 (D9) | `position_3d_base_frame` null이면 objects[]에서 제외 | ✅ 완료 (PR#2) |
+| camera_info 구독 토픽 (D18) | `/camera/image/camera_info` (fixed_rgbd_camera.sdf 분리 센서) | ✅ 완료 (PR#2) |
+| 통합 월드 연동 (D13) | 카메라 TF 연결, camera_info 사용 | ✅ 완료 (PR#2) |
+
+## 부록 D — 환경 설정 요약 (D18 기준)
+| 항목 | 값 | 비고 |
+|------|-----|------|
+| `UR3_CONVENIENCE_ENV_PATH` | `~/WorkspaceMain/UR3_CONVENIENCE_ENV` (기본값) | launch 자동 설정 |
+| `IGN_GAZEBO_RESOURCE_PATH` | `$UR3_CONVENIENCE_ENV_PATH/models` | SetEnvironmentVariable로 주입 |
+| 기본 world 파일 | `$UR3_CONVENIENCE_ENV_PATH/worlds/ur3_pick_place.sdf` | 없으면 PANDA_ENV 내부 sdf 사용 |
+| camera_link TF | position=[1.2, 0, 0.5], roll=-π/2, pitch=0, yaw=+π/2 | -X 방향 향하는 수평 카메라 |
+| camera_info 토픽 (Ignition) | `/camera/image/camera_info` | type="camera" 센서 규약 |
+| shelf surface world z | 0.34 m | -0.05 + 0.39 = model_z + board_center |
+| coke_can link_z (SDF) | 0.57 m | bottom at z=0.34, mesh pose=-0.23 |
+| coke_can center world z | ≈0.42 m | YOLO 기대 탐지 깊이 |
