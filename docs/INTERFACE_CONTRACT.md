@@ -73,7 +73,16 @@
 ## 4. Agent → MoveIt : `/moveit/execute`
 
 - 타입: `llm_agent_msgs/srv/MoveItExecute`. 역할: **Agent=client, MoveIt=server**.
+- **서버 구현 = `Moveit_module/ur3_moveit_module`** (전송 서비스로 통일, [D15]).
 - 동시성: 단일 세션 직렬·blocking. 서버는 **계획+실행 완료 후** 응답.
+
+> **서버측 페이로드 처리 규약**: 서버는 `Request{cmd, params_json}`를
+> `flat = {"cmd": cmd, **json.loads(params_json or "{}")}`로 병합한 뒤 내부 라우터에 넘긴다
+> (Moveit_module `CommandRouter.handle`는 이 평면 dict를 기대). 응답은 라우터 status의
+> `success`/`error_code`/`error_message`를 그대로 매핑. [D15]
+>
+> **로봇 고정값은 서버 권위**(`hand_frame`·`grasp_frame_transform`·group/eef명): 서버 config 값 사용,
+> 명령에 실려와도 무시. 동적값(object pose/dims, waypoints, target_pose)만 명령에서 취함. [D16]
 
 ```
 # Request

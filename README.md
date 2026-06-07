@@ -21,9 +21,9 @@ CLI 자연어 명령 → (LLM) 의도 파싱 → (YOLO) 물체 탐지·절대좌
 |------|------|------|------|
 | LLM Agent | `ROS2bootcamp/LLM_Agent` | 시나리오 오케스트레이터(P1~P4), 인터페이스 계약 정의자 | 🟢 성숙 |
 | YOLO Vision | `ROS2bootcamp/ROBOT_VISION` | 물체 인식 + 3D 좌표 발행 | 🟡 노드 OK / 환경 분리 |
-| MoveIt (구현) | `ROS2bootcamp/PANDA_ENV` (`ur3_mtc_pick_place`) | MTC Pick&Place + 통합 bringup launch | 🟡 one-shot |
-| MoveIt (지정) | `ROS2bootcamp/Moveit_module` | (서비스 서버 산출물 예정 위치) | 🔴 빈 레포 |
-| 로봇 모델 | `ROS2bootcamp/ur3-glapper` | UR3 + Robotiq 2F-85 URDF | 🟡 RViz 단계 |
+| **MoveIt 모션 실행** | **`ROS2bootcamp/Moveit_module`** (`ur3_moveit_module`) | 명령 분해 실행(scan/pick/lift/place/release/home), 컨트롤러·씬·grasp 기하 | 🟢 구현됨 / **전송계층 서비스화 필요** |
+| MoveIt 레퍼런스 | `ROS2bootcamp/PANDA_ENV` (`ur3_mtc_pick_place`) | URDF·SRDF·MTC 기하 레퍼런스, bringup이 참조 | 🟡 레퍼런스 |
+| 로봇 모델 | `ROS2bootcamp/ur3-glapper` | UR3 + Robotiq 2F-85 URDF (PANDA 경로로 흡수) | 🟡 RViz 단계 |
 | Gazebo 환경 | `ROS2bootcamp/GAZEBO_ENV` | 공식 `ur-simulation-gz` 기반 UR3 시뮬 | 🔴 가이드만 |
 | 픽킹 환경 | `ROS2bootcamp/UR3_CONVENIENCE_ENV` | 편의점 선반 picking 환경 | 🔴 미착수 |
 
@@ -35,6 +35,7 @@ CLI 자연어 명령 → (LLM) 의도 파싱 → (YOLO) 물체 탐지·절대좌
 | [docs/INTERFACE_CONTRACT.md](docs/INTERFACE_CONTRACT.md) | **단일 진실원천(SSOT)** — 토픽/서비스/프레임/좌표 규약 확정본 |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | 모든 모호성·불일치 → 확정 결정 + 레포별 수정 액션 |
 | [docs/INTEGRATION_STRATEGY.md](docs/INTEGRATION_STRATEGY.md) | 단계별 통합 로드맵 + 목표 워크스페이스 구조 |
+| [docs/MOVEIT_MODULE_INTEGRATION.md](docs/MOVEIT_MODULE_INTEGRATION.md) | **Moveit_module 기반 구조 정립** — 전송 서비스화 결정·변경 명세·통합 ws·실행순서 |
 
 ## 공통 스택 (전 모듈 합의)
 
