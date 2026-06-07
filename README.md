@@ -8,23 +8,40 @@
 
 CLI 자연어 명령 → LLM이 의도 파싱 → YOLO가 선반 위 콜라캔 탐지·3D좌표 변환 → MoveIt이 Pick & Place 계획·실행
 
+```mermaid
+flowchart LR
+    subgraph USER["👤 사용자"]
+        CLI["CLI\n자연어 명령"]
+    end
+
+    subgraph AGENT["🤖 llm_agent"]
+        direction TB
+        CORE["AgentNode\nP1→P2→P3→P4"]
+        LLM_C["LLMClient\nGemini 2.5 Flash"]
+        CORE <--> LLM_C
+    end
+
+    subgraph MOVEIT["⚙️ ur3_moveit_module"]
+        MM["MoveItModuleNode\nscan / pick / lift\nplace / release / home"]
+    end
+
+    subgraph VISION["👁️ robot_vision"]
+        YD["YoloDetector\nYOLOv8n COCO"]
+    end
+
+    subgraph SIM["🌐 Gazebo"]
+        UR3["UR3\n+ Robotiq 2F-85"]
+        CAM["RGB-D\nCamera"]
+    end
+
+    CLI -->|자연어| CORE
+    CORE -->|"/moveit/execute\nService"| MM
+    MM -->|MoveIt2| UR3
+    YD -->|"/vision/detection_results\nTopic"| CORE
+    CAM -->|"/camera/image\n/camera/depth_image\nTopic"| YD
 ```
-[사용자 CLI] ──자연어──▶ llm_agent (LLM_Agent)
-                             │ /moveit/execute (ROS2 srv)
-                             ▼
-                      ur3_moveit_module (Moveit_module)
-                             │ MoveIt2 + MTC
-                             ▼
-                    Gazebo UR3 + Robotiq 2F-85
-                             ▲
-              /vision/detection_results (JSON String)
-                             │
-                    yolo_detector (ROBOT_VISION)
-                             ▲
-              /camera/image + /camera/depth_image
-                             │
-                  fixed_rgbd_camera (UR3_CONVENIENCE_ENV)
-```
+
+> 전체 상세 다이어그램(노드 통신 구조 · 시퀀스 · 예외 처리 흐름): [docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md)
 
 ## 모듈 현황
 
@@ -406,6 +423,7 @@ sudo apt install ros-humble-robotiq-description
 
 | 문서 | 내용 |
 |------|------|
+| [docs/ARCHITECTURE_DIAGRAM.md](docs/ARCHITECTURE_DIAGRAM.md) | **전체 아키텍처 다이어그램** (시스템 구조 · 통신 · 시퀀스 · 예외 처리 흐름) |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | 모든 통합 결정사항(D1~D18), 레포별 수정 액션, 구현 상태 |
 | [docs/INTERFACE_CONTRACT.md](docs/INTERFACE_CONTRACT.md) | 토픽/서비스/프레임/좌표 규약 단일 진실원천(SSOT) |
 | [docs/MOVEIT_MODULE_INTEGRATION.md](docs/MOVEIT_MODULE_INTEGRATION.md) | Moveit_module 전송 서비스화 구조 정립 |
