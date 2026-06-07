@@ -826,3 +826,31 @@ ros2 topic echo /moveit_status
 | LLM JSON 파싱 실패 | Gemini가 응답을 ```json 블록으로 감싸는 경우 | `llm_client.py` 마크다운 블록 제거 전처리 추가 |
 | pick 후 물체 위치 오차 | YOLO가 바닥 좌표 반환, MoveIt은 중심 좌표 필요 | `_build_pick_params()` z 보정 로직 추가 |
 | 서비스 call timeout | spin 스레드에서 call_and_wait 호출 → 데드락 | `ThreadPoolExecutor` 워커 스레드로 이전 |
+
+## UR + GRIPPER 주요 트러블슈팅 기록
+
+
+| 문제                              | 원인                                                   | 해결                                            |
+| ------------------------------- | ---------------------------------------------------- | --------------------------------------------- |
+| UR3 + Robotiq 모델 결합 실패          | Xacro Macro 이름, 인자, 연결 가능한 Link 정보 부족                | 설치된 패키지 내부 Macro 분석 후 `tool0`에 Gripper 연결     |
+| RViz에서는 움직이지만 Gazebo에서는 움직이지 않음 | RViz는 시각화만 수행하고 Gazebo는 ros2_control 연동 필요           | `ur_simulation_gz` 공식 시뮬레이션 환경으로 전환           |
+| Gazebo에서 UR3 제어 실패              | 잘못된 Controller 및 Action 경로 사용                        | `joint_trajectory_controller` 기반 제어 방식 적용     |
+| 카메라 및 Gripper 추가 후 URDF 생성 실패   | Xacro Include 경로 및 install 공간 반영 문제                  | 패키지 재빌드 및 Xacro 경로 수정                         |
+| Gripper Controller 활성화 실패       | Robotiq 관절이 ros2_control Hardware Interface에 등록되지 않음 | `ur.ros2_control.xacro` 수정 후 Gripper Joint 등록 |
+| Gripper 제어 불가                   | Controller와 Joint가 연결되지 않음                           | Hardware Interface 등록 및 Controller 생성         |
+| Gazebo에서 Gripper가 흔들리거나 비정상 동작  | Mimic Joint 구조가 물리엔진에서 제대로 처리되지 않음                   | ros2_control 기반 제어 구조 추가 및 Joint 구조 분석        |
+| 손가락이 한쪽만 움직이거나 비정상적으로 움직임       | Mimic Joint를 독립적으로 제어함                               | Gripper Joint 구성 분석 및 제어 방식 개선 진행             |
+
+### 현재 상태
+
+* ✅ UR3 모델 로드
+* ✅ Robotiq 2F-85 장착
+* ✅ 카메라 모델 추가
+* ✅ RViz 시각화
+* ✅ Gazebo 시뮬레이션
+* ✅ UR3 팔 제어
+* ✅ ros2_control 연동
+* ✅ Gripper Controller 생성
+* 🔄 Gripper 파지 동작 구현 중
+* 🔄 물체 파지 테스트 진행 중
+
