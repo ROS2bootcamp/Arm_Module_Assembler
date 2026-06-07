@@ -41,10 +41,11 @@
     # ──────────────────────────────────────────
     # UR3_CONVENIENCE_ENV model.sdf scale=0.5: height≈0.15 m, radius≈0.033 m
     # can center world z = shelf_surface(0.34) + half_height(0.075) = 0.415 m
+    # x=0.47 from run_env.sh official placement.
     # LLM_Agent overrides object_pose from YOLO detection; this is the fallback.
     object_name: "cylinder"
     object_dimensions: [0.15, 0.033]  # [높이, 반지름]
-    object_pose: [0.55, 0.0, 0.415, 0.0, 0.0, 0.0]
+    object_pose: [0.47, 0.0, 0.415, 0.0, 0.0, 0.0]
 
     # ──────────────────────────────────────────
     # 파지 자세 생성 파라미터

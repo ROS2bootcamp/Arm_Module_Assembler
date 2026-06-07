@@ -64,12 +64,13 @@
     </include>
 
     <!-- TARGET: Coke can (YOLO class: bottle)
-         link_z=0.57 → can bottom at shelf surface z=0.34 m
+         Positions from UR3_CONVENIENCE_ENV/run_env.sh (official).
+         link_z=0.57: mesh bottom (pose z=-0.23, mesh Z≈0) → bottom at z=0.34 m shelf surface.
          can center z = 0.34 + 0.077 = 0.417 m -->
     <include>
       <uri>model://coke_can</uri>
       <name>coke_can</name>
-      <pose>0.55 0.0 0.57 0 0 0</pose>
+      <pose>0.47 0.0 0.57 0 0 0</pose>
     </include>
 
     <!-- DISTRACTOR: Soccer ball (YOLO class: sports ball)
@@ -77,16 +78,16 @@
     <include>
       <uri>model://robocup_3Dsim_ball</uri>
       <name>soccer_ball</name>
-      <pose>0.55 0.35 0.40 0 0 0</pose>
+      <pose>0.50 0.30 0.40 0 0 0</pose>
     </include>
 
     <!-- DISTRACTOR: Toaster (YOLO class: toaster)
-         mesh bottom at z=0 in model frame → spawn at shelf surface z=0.34 m
+         mesh bottom at z=0 → spawn at shelf surface z=0.34 m
          yaw=PI/2: depth axis (0.295 m) aligns with world-X (shelf depth=0.55 m) -->
     <include>
       <uri>model://toaster</uri>
       <name>toaster</name>
-      <pose>0.55 -0.35 0.34 0 0 1.5708</pose>
+      <pose>0.50 -0.38 0.34 0 0 1.5708</pose>
     </include>
 
     <!-- Fixed RGB-D camera: faces -X world (lens at model -X, placed with yaw=PI)

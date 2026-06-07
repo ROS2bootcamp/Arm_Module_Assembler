@@ -31,6 +31,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command, FindExecutable, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterValue
 from ament_index_python.packages import get_package_share_directory
 
 
@@ -39,25 +40,31 @@ def launch_setup(context, *args, **kwargs):
     world_file = LaunchConfiguration('world_file').perform(context)
 
     # ── URDF 생성 (UR3 + Robotiq 2F-85) ──────────────────
-    robot_description_content = Command([
-        FindExecutable(name='xacro'), ' ',
-        PathJoinSubstitution([
-            FindPackageShare('ur3_mtc_pick_place'),
-            'urdf', 'ur3_with_gripper.urdf.xacro',
+    robot_description_content = ParameterValue(
+        Command([
+            FindExecutable(name='xacro'), ' ',
+            PathJoinSubstitution([
+                FindPackageShare('ur3_mtc_pick_place'),
+                'urdf', 'ur3_with_gripper.urdf.xacro',
+            ]),
+            ' ur_type:=', ur_type,
         ]),
-        ' ur_type:=', ur_type,
-    ])
+        value_type=str,
+    )
     robot_description = {'robot_description': robot_description_content}
 
     # ── SRDF 생성 (name:=ur → ur_manipulator group) ───────
-    robot_description_semantic_content = Command([
-        FindExecutable(name='xacro'), ' ',
-        PathJoinSubstitution([
-            FindPackageShare('ur3_mtc_pick_place'),
-            'srdf', 'ur3_with_gripper.srdf.xacro',
+    robot_description_semantic_content = ParameterValue(
+        Command([
+            FindExecutable(name='xacro'), ' ',
+            PathJoinSubstitution([
+                FindPackageShare('ur3_mtc_pick_place'),
+                'srdf', 'ur3_with_gripper.srdf.xacro',
+            ]),
+            ' name:=ur ',   # D17: hardcoded — generates 'ur_manipulator' group
         ]),
-        ' name:=ur ',   # D17: hardcoded — generates 'ur_manipulator' group
-    ])
+        value_type=str,
+    )
     robot_description_semantic = {
         'robot_description_semantic': robot_description_semantic_content
     }
