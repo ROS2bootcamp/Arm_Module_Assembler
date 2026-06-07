@@ -426,3 +426,385 @@ sudo apt install ros-humble-robotiq-description
 | 비전 | YOLOv8n (COCO) |
 | LLM | Google Gemini `gemini-2.5-flash` |
 | 물체 인식 클래스 | `bottle` = 콜라캔 |
+
+---
+
+## 평가 항목별 구현 근거
+
+### 1. LLM & 프롬프트 (20점)
+
+#### 1-A. 컨텍스트 및 구조화 (10점)
+
+**로봇 API 및 현재 상태를 프롬프트에 주입**
+
+LLM 호출은 두 지점에서 발생한다. 각 호출에 필요한 컨텍스트를 시스템 프롬프트와 user_content에 분리해 주입한다.
+
+`src/llm_agent/llm_agent/phase_manager.py` — 시스템 프롬프트 정의:
+
+```python
+_SYSTEM_PROMPTS = {
+    'parse_command': (
+        "당신은 로봇 조작 시스템의 명령 파싱 에이전트입니다.\n"
+        "사용자의 자연어 명령에서 대상 오브젝트의 class_name을 추출하세요.\n"
+        "YOLO(YOLOv8/COCO) 모델의 라벨 형식 그대로 반환하세요"
+        '(예: "cup", "bottle", "stop sign").\n'
+        '응답은 반드시 JSON 형식으로만: {"target_class_name": "cup"}'
+    ),
+    'verify_pickup': (
+        "당신은 로봇 pickup 성공 여부를 판단하는 에이전트입니다.\n"
+        "제공된 YOLO 감지 데이터(objects 배열)를 분석해 gripper가 오브젝트를\n"
+        "쥐고 있는지 판단하세요. 대상이 계속 가까이 감지되면 성공으로 봅니다.\n"
+        '응답은 반드시 JSON 형식으로만: {"pickup_success": true, "reason": "..."}'
+    ),
+}
+```
+
+`src/llm_agent/llm_agent/agent_node.py` — P3 pickup 검증 시 YOLO 상태를 user_content로 주입:
+
+```python
+result = self._llm.call(
+    system_prompt=self._pm.system_prompt('verify_pickup'),
+    user_content=(
+        f'target_class_name: {target}\n'
+        f'YOLO frames (recent {len(frames)}):\n'
+        + json.dumps(frames, ensure_ascii=False)
+    ),
+    response_schema=VERIFY_PICKUP_SCHEMA,
+)
+```
+
+**JSON 구조적 출력 강제**
+
+`src/llm_agent/llm_agent/llm_client.py` — Gemini structured output + required 키 재검증:
+
+```python
+PARSE_COMMAND_SCHEMA = types.Schema(
+    type=types.Type.OBJECT,
+    properties={'target_class_name': types.Schema(type=types.Type.STRING)},
+    required=['target_class_name'],
+)
+VERIFY_PICKUP_SCHEMA = types.Schema(
+    type=types.Type.OBJECT,
+    properties={
+        'pickup_success': types.Schema(type=types.Type.BOOLEAN),
+        'reason': types.Schema(type=types.Type.STRING),
+    },
+    required=['pickup_success', 'reason'],
+)
+
+# 호출 시 response_mime_type + response_schema 동시 적용
+response = self._client.models.generate_content(
+    model=self._model,
+    contents=user_content,
+    config=types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        max_output_tokens=self._max_tokens,
+        temperature=0.0,
+        response_mime_type='application/json',
+        response_schema=response_schema,   # 스키마 이탈 원천 차단
+    ),
+)
+# 파싱 후 required 키 재검증
+missing = [k for k in required if k not in parsed]
+if missing:
+    raise ValueError(f'응답에 필수 키 누락: {missing}')
+```
+
+---
+
+#### 1-B. 태스크 플래닝 (10점)
+
+**자연어 명령 → 구체적 액션 시퀀스 분해**
+
+파이프라인은 P1(탐색) → P2(파지) → P3(pickup 검증) → P4(배치)의 4단계로 분해된다. 단계 분해 자체는 코드 레벨에서 고정 구현되며, LLM은 두 핵심 판단 지점에 투입된다.
+
+- **P0: 명령 파싱** — 자연어에서 YOLO target class 추출 (LLM 투입)
+- **P3: pickup 검증** — 들어올린 후 YOLO 프레임으로 파지 성공 여부 판단 (LLM 투입)
+
+`src/llm_agent/llm_agent/agent_node.py` — 세션 오케스트레이션:
+
+```python
+def _run_session(self, raw_command: str) -> None:
+    # ── LLM: 자연어 → target class 추출 ──
+    target = self._parse_command(raw_command)   # "콜라캔 집어줘" → "bottle"
+
+    while True:
+        detection = self._run_p1(target, cfg)   # P1: scan → YOLO 탐지
+        pick_ok   = self._run_p2(target, detection, cfg)  # P2: 좌표 계산 → pick
+        pickup_ok = self._run_p3(target, cfg)   # P3: lift → LLM pickup 검증
+        if pickup_ok:
+            break
+        # 실패 시 retry (최대 SESSION_MAX_RETRY=3)
+        self._pm.increment_retry(reason='P3 pickup failed')
+        if self._pm.retry_exceeded:
+            return
+
+    self._run_p4(cfg)   # P4: place → release → home
+```
+
+**P2 파라미터 결정론적 조립** — YOLO 좌표 + config Object Spec으로 pick 파라미터를 LLM 없이 직접 계산:
+
+```python
+def _build_pick_params(self, spec, wx, wy, wz, moveit_cfg):
+    shape = spec['shape']
+    dims  = list(spec['dimensions'])
+    # YOLO는 바닥 좌표를 반환하므로 물체 중심 z로 보정
+    if shape == 'cylinder':
+        z = wz + dims[0] / 2.0   # 바닥 → 원통 중심
+    elif shape == 'box':
+        z = wz + dims[2] / 2.0   # 바닥 → 박스 중심
+    return {
+        'object': {'name': 'target_object', 'shape': shape,
+                   'dimensions': dims, 'pose_world': [wx, wy, z, 0, 0, 0]},
+        ...
+    }
+```
+
+---
+
+### 2. ROS 2 시스템 설계 (10점)
+
+#### 아키텍처 및 통신 (10점)
+
+**노드 역할 분리**
+
+| 노드 | 패키지 | 역할 |
+|------|--------|------|
+| `llm_agent` | `llm_agent` | LLM 추론 · 세션 오케스트레이션 |
+| `moveit_module` | `ur3_moveit_module` | MoveIt2 계획·실행 서비스 서버 |
+| `yolo_detector` | `robot_vision` | YOLOv8 탐지 · 3D 좌표 변환 |
+
+**데이터 특성에 맞는 통신 방식 선택**
+
+| 통신 채널 | 방식 | 선택 이유 |
+|-----------|------|-----------|
+| `/vision/detection_results` | **Topic** | 연속 스트림, 버퍼링 필요 |
+| `/moveit/execute` | **Service** | 단발 요청-응답, 완료까지 블로킹 필요 |
+| `/llm_agent/phase` | **Topic** | 모니터링용 단방향 상태 전파 |
+| `/moveit_status` | **Topic** | MoveIt 실행 결과 모니터링 |
+
+`src/llm_agent/llm_agent/agent_node.py` — Topic/Service 사용 구조:
+
+```python
+# Topic: YOLO 탐지 결과 구독 (지속 스트림)
+self._yolo = YoloSubscriber(self, topic=cfg['yolo']['detection_topic'])
+
+# Service: MoveIt 명령 (단발 요청-응답)
+self._moveit = MoveItClient(self, service_name=cfg['moveit']['service_name'])
+
+# Topic: phase 상태 발행 (모니터링)
+self._phase_pub = self.create_publisher(String, '/llm_agent/phase', 10)
+```
+
+`src/ur3_moveit_module/ur3_moveit_module/moveit_module_node.py` — 서비스 서버 등록:
+
+```python
+self._srv = self.create_service(
+    MoveItExecute, self._cfg["service_name"], self._on_execute,
+    callback_group=self._cb_group)
+```
+
+**스핀 스레드 블로킹 방지** — `MultiThreadedExecutor` + `ThreadPoolExecutor` 조합:
+
+```python
+# agent_node.py
+self._pool = ThreadPoolExecutor(max_workers=1)
+# CLI 커맨드를 워커 스레드에서 처리 → ROS2 스핀 스레드 비블로킹
+self._pool.submit(self._run_session, cmd)
+```
+
+---
+
+### 3. 시스템 안정성 (10점)
+
+#### 3-A. LLM 예외 처리 (5점)
+
+`src/llm_agent/llm_agent/llm_client.py` — 포맷 오류·환각·API 오류 전 케이스 방어:
+
+```python
+for attempt in range(self._max_retry):
+    try:
+        response = self._client.models.generate_content(...)
+        text = (response.text or '').strip()
+        # ```json ... ``` 마크다운 블록 대응
+        if text.startswith('```'):
+            text = text.split('```')[1]
+            if text.startswith('json'):
+                text = text[4:]
+        parsed = json.loads(text)
+        # required 키 누락(환각) 검증
+        missing = [k for k in required if k not in parsed]
+        if missing:
+            raise ValueError(f'응답에 필수 키 누락: {missing}')
+        return parsed
+    except (json.JSONDecodeError, ValueError, genai_errors.APIError) as e:
+        last_error = e
+        if attempt < self._max_retry - 1:
+            time.sleep(self._retry_backoff * (2 ** attempt))  # 지수 백오프
+raise RuntimeError(f'LLM call failed after {self._max_retry} retries: {last_error}')
+```
+
+`src/llm_agent/llm_agent/agent_node.py` — 세션 레벨 예외 격리 (`finally` 보장):
+
+```python
+def _run_session(self, raw_command: str) -> None:
+    try:
+        ...
+    except Exception as e:
+        self._report(f'예외 발생으로 세션 종료: {e}')   # 시스템 다운 없이 세션만 종료
+        self.get_logger().error(str(e))
+    finally:
+        self._busy = False       # 다음 명령 수신 재개
+        self._pm.reset_session() # 상태 초기화
+```
+
+---
+
+#### 3-B. 로봇 안전 제어 (5점)
+
+**속도 제한 — 충돌 충격 최소화**
+
+`src/ur3_moveit_module/ur3_moveit_module/moveit_module_node.py`:
+
+```python
+_PARAM_DEFAULTS = {
+    ...
+    "velocity_scaling": 0.3,      # 최대 속도의 30%
+    "acceleration_scaling": 0.3,  # 최대 가속도의 30%
+}
+```
+
+**Planning Scene 오브젝트 등록 — MoveIt 충돌 회피 활성화**
+
+`src/ur3_moveit_module/ur3_moveit_module/handlers.py`:
+
+```python
+def pick(self, cmd: dict) -> HandlerResult:
+    # 1. 오브젝트를 planning scene에 등록 → MoveIt이 충돌체로 인식
+    self._scene.add_object(name, shape, dims, pose_world)
+    # 2. 그리퍼 열기
+    self._gripper.open(...)
+    # 3. grasp 경로 계획 (충돌 회피 포함)
+    plan = gp.plan_grasp(pose_world, grasp_tf, shape, dims, ...)
+    ...
+    # 4. 파지 후 attach → 팔 이동 시 오브젝트도 충돌체로 함께 이동
+    self._scene.attach(name, hand_frame)
+```
+
+**낙하 방지 — place 실패 시 release 생략**
+
+`src/llm_agent/llm_agent/agent_node.py`:
+
+```python
+def _run_p4(self, cfg: dict) -> bool:
+    place_status = self._moveit.call_and_wait('place', {...})
+    if not place_status.get('success', False):
+        # place 실패: 오브젝트를 쥔 채 release 하면 임의 위치 낙하
+        # → release 생략, HOME만 복귀
+        self._moveit.call_and_wait('home', {...})
+        return False
+    # place 성공 시에만 release
+    self._moveit.call_and_wait('release', {...})
+    self._moveit.call_and_wait('home', {...})
+    return True
+```
+
+**세션 최대 재시도 제한 — 무한 루프 방지**
+
+`src/llm_agent/llm_agent/phase_manager.py`:
+
+```python
+SESSION_MAX_RETRY = 3   # P1 timeout + P3 실패 합산 최대 3회
+
+@property
+def retry_exceeded(self) -> bool:
+    return self._session_retry_count >= self.SESSION_MAX_RETRY
+```
+
+---
+
+### 4. 완성도 & 문서화 (10점)
+
+#### 4-A. 시연 시나리오 (5점)
+
+**시나리오: 편의점 선반 콜라캔 Pick & Place**
+
+```
+사용자: "콜라캔 집어줘"
+  ↓
+P1 Scan  : 로봇 팔이 scan_waypoints 순서대로 이동하며 YOLO가 "bottle" 탐지
+  ↓
+P2 Pick  : 탐지 좌표 → TF 변환 → MoveIt grasp 계획 → 그리퍼 파지 → YOLO grip 검증
+  ↓
+P3 Verify: 10 cm lift → 최근 YOLO 10프레임을 LLM에 전달 → pickup_success 판단
+  ↓
+P4 Place : target_pose(x=0.4, y=-0.2, z=0.08)로 이동 → 내려놓기 → 그리퍼 열기 → HOME
+```
+
+실시간 모니터링:
+
+```bash
+# 에이전트 단계 확인
+ros2 topic echo /llm_agent/phase
+
+# YOLO 탐지 스트림 확인
+ros2 topic echo /vision/detection_results
+
+# MoveIt 실행 결과 확인
+ros2 topic echo /moveit_status
+```
+
+---
+
+#### 4-B. 시스템 구조도 및 문서 (5점)
+
+**시스템 아키텍처**
+
+```
+[사용자 CLI]
+     │  자연어 명령
+     ▼
+┌─────────────────────────────────────┐
+│         llm_agent 노드              │
+│  ┌─────────────┐  ┌───────────────┐ │
+│  │ LLMClient   │  │ PhaseManager  │ │
+│  │ (Gemini)    │  │ P1→P2→P3→P4  │ │
+│  └─────────────┘  └───────────────┘ │
+│  ┌─────────────┐  ┌───────────────┐ │
+│  │YoloSubscrib.│  │ MoveItClient  │ │
+│  │ (Topic Sub) │  │ (Srv Client)  │ │
+│  └─────────────┘  └───────────────┘ │
+└─────────────────────────────────────┘
+     │ /moveit/execute (Service)    ▲ /vision/detection_results (Topic)
+     ▼                              │
+┌────────────────────┐   ┌──────────────────────┐
+│  moveit_module 노드 │   │  yolo_detector 노드   │
+│  CommandRouter     │   │  YOLOv8n + TF 변환    │
+│  Handlers(pick/    │   │  camera→base_frame    │
+│  lift/place/...)   │   └──────────────────────┘
+│  SceneManager      │              ▲
+└────────────────────┘    /camera/image + /camera/depth_image
+     │ MoveIt2 + MTC                │
+     ▼                    ┌──────────────────────┐
+  Gazebo UR3              │  fixed_rgbd_camera    │
+  Robotiq 2F-85           │  (UR3_CONVENIENCE_ENV)│
+                          └──────────────────────┘
+```
+
+**관련 설계 문서**
+
+| 문서 | 내용 |
+|------|------|
+| [docs/DECISIONS.md](docs/DECISIONS.md) | 통합 결정사항 D1~D18 (통신 방식, 좌표계, 서비스 설계 등) |
+| [docs/INTERFACE_CONTRACT.md](docs/INTERFACE_CONTRACT.md) | 토픽/서비스/프레임/좌표 규약 단일 진실원천 |
+| [docs/INTEGRATION_ANALYSIS.md](docs/INTEGRATION_ANALYSIS.md) | 모듈별 인터페이스 분석 및 통합 이슈 전수 조사 |
+
+**주요 트러블슈팅 기록** (개발 과정에서 해결한 문제들)
+
+| 문제 | 원인 | 해결 |
+|------|------|------|
+| MoveIt IK 실패 | SRDF 그룹명 `ur` vs `ur_manipulator` 불일치 | `fix/srdf-group-name` 브랜치에서 수정 |
+| YOLO 좌표 오차 | camera_link TF roll/pitch/yaw 부호 오류 | static_tf 인수 `camera_roll:=-1.5708` 조정 |
+| LLM JSON 파싱 실패 | Gemini가 응답을 ```json 블록으로 감싸는 경우 | `llm_client.py` 마크다운 블록 제거 전처리 추가 |
+| pick 후 물체 위치 오차 | YOLO가 바닥 좌표 반환, MoveIt은 중심 좌표 필요 | `_build_pick_params()` z 보정 로직 추가 |
+| 서비스 call timeout | spin 스레드에서 call_and_wait 호출 → 데드락 | `ThreadPoolExecutor` 워커 스레드로 이전 |
